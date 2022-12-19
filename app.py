@@ -1,3 +1,4 @@
+import gc
 import statistics
 import time
 from datetime import datetime
@@ -11,8 +12,14 @@ cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-cap.set(cv2.CAP_PROP_FPS, 10)
+cap.set(cv2.CAP_PROP_FPS, 5)
 cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)
+
+
+def check_refresh(refresh_minute_rate=1):
+    minute = datetime.now().minute
+    second = datetime.now().second
+    return minute % refresh_minute_rate == 0 and second == 0
 
 
 class NegaeriDetector:
@@ -21,7 +28,7 @@ class NegaeriDetector:
         # face detector
         mp_face_detection = mp.solutions.face_detection
         self.face_detection = mp_face_detection.FaceDetection(
-        model_selection=1, min_detection_confidence=0.5)
+            model_selection=1, min_detection_confidence=0.5)
         self.is_draw = is_draw
         if is_draw:
             self.mp_drawing = mp.solutions.drawing_utils
@@ -29,10 +36,10 @@ class NegaeriDetector:
         # for filtering
         self.window = [False for _ in range(window_size)]
         self.idx = 0
-        
+
     def __del__(self):
         self.face_detection.close()
-        
+
     def __call__(self, img):
 
         results = self.face_detection.process(img)
@@ -59,6 +66,7 @@ st.title('Baby Monitor')
 baby_status = st.empty()
 monitor_canvas = st.empty()
 
+print("start app")
 while cap.isOpened:
     ret, img = cap.read()
     time.sleep(0.01)
@@ -80,12 +88,17 @@ while cap.isOpened:
                     color=(0, 255, 0),
                     thickness=1,
                     lineType=cv2.LINE_4)
-
         monitor_canvas.image(img)
     else:
         print("missing")
 
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
+
+    # FIX: temporary solution
+    if check_refresh(1):
+        del negaeri_detector
+        cap.release()
+        st.experimental_rerun()
 
 cap.release()
