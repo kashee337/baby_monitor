@@ -10,7 +10,7 @@ $ pip install -r requirements.txt
 
 ## Run
 ```
-$ start-app.sh
+$ sh start-app.sh
 ```
 
 ## Access
