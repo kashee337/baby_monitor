@@ -30,13 +30,35 @@ class PoseBase(Detector):
         # pose detector
         self.mp_pose = mp.solutions.pose
         self.pose_detector = self.mp_pose.Pose(
-            min_detection_confidence=0.3,
+            min_detection_confidence=0.5,
             min_tracking_confidence=0.5)
 
         self.mp_drawing = mp.solutions.drawing_utils
         self.mp_drawing_styles = mp.solutions.drawing_styles
 
         self.is_ir = is_ir
+
+    def negaeri_check(self, results):
+        if not results.pose_landmarks:
+            return False
+        try:
+            RIGHT_EAR = 8
+            LEFT_EAR = 7
+            NOSE = 0
+
+            nose = results.pose_landmarks.landmark[NOSE]
+            right = results.pose_landmarks.landmark[RIGHT_EAR]
+            left = results.pose_landmarks.landmark[LEFT_EAR]
+
+            center_x = (nose.x+right.x+left.x)/3
+            center_y = (nose.y+right.y+left.y)/3
+
+            u = np.array([right.x-center_x, right.y-center_y])
+            v = np.array([left.x-center_x, left.y-center_y])
+
+            return np.cross(u, v) >= 0
+        except:
+            return False
 
     def detect(self, img):
         if self.is_ir:
@@ -45,7 +67,9 @@ class PoseBase(Detector):
             results = self.pose_detector.process(gray_img)
         else:
             results = self.pose_detector.process(img)
-        ret = results.pose_landmarks is not None
+
+        ret = self.negaeri_check(results)
+
         return ret, results
 
     def draw(self, img, results):
