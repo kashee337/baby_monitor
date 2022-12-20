@@ -49,11 +49,12 @@ class PoseBase(Detector):
         return ret, results
 
     def draw(self, img, results):
-        self.mp_drawing.draw_landmarks(
-            img,
-            results.pose_landmarks,
-            self.mp_pose.POSE_CONNECTIONS,
-            landmark_drawing_spec=self.mp_drawing_styles.get_default_pose_landmarks_style())
+        if results.pose_landmarks:
+            self.mp_drawing.draw_landmarks(
+                img,
+                results.pose_landmarks,
+                self.mp_pose.POSE_CONNECTIONS,
+                landmark_drawing_spec=self.mp_drawing_styles.get_default_pose_landmarks_style())
 
     def close(self):
         self.pose_detector.close()
@@ -84,8 +85,9 @@ class FaceBase(Detector):
         return ret, results
 
     def draw(self, img, results):
-        for detection in results.detections:
-            self.mp_drawing.draw_detection(img, detection)
+        if results.detections:
+            for detection in results.detections:
+                self.mp_drawing.draw_detection(img, detection)
 
     def close(self):
         self.face_detctor.close()
@@ -108,14 +110,9 @@ class NegaeriDetector:
     def __call__(self, img):
 
         ret, results = self.detector.detect(img)
-
-        if ret:
-            self.window[self.idx] = True
-            if self.is_draw:
-                self.detector.draw(img, results)
-        else:
-            self.window[self.idx] = False
-
+        self.window[self.idx] = ret
+        if self.is_draw:
+            self.detector.draw(img, results)
         self.idx += 1
         self.idx %= len(self.window)
 
