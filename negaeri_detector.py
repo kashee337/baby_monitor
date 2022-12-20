@@ -42,13 +42,13 @@ class PoseBase(Detector):
         if not results.pose_landmarks:
             return False
         try:
-            RIGHT_EAR = 8
-            LEFT_EAR = 7
+            RIGHT_SHOULDER = 12
+            LEFT_SHOULDER = 11
             NOSE = 0
 
             nose = results.pose_landmarks.landmark[NOSE]
-            right = results.pose_landmarks.landmark[RIGHT_EAR]
-            left = results.pose_landmarks.landmark[LEFT_EAR]
+            right = results.pose_landmarks.landmark[RIGHT_SHOULDER]
+            left = results.pose_landmarks.landmark[LEFT_SHOULDER]
 
             center_x = (nose.x+right.x+left.x)/3
             center_y = (nose.y+right.y+left.y)/3
