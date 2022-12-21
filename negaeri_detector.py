@@ -77,6 +77,7 @@ class PoseBase(Detector):
         self.yaw_buf = RingBuffer(10)
 
     def negaeri_check(self, results):
+        """鼻、両方の3点からyaw_rateを計算し、そのfilter値で判定する簡易処理 """
         if not results.pose_landmarks:
             return False
         try:
@@ -94,7 +95,6 @@ class PoseBase(Detector):
             yaw_rate = calc_yaw_rate(np.cross(u, v))
 
             self.yaw_buf.append(yaw_rate)
-            print(self.yaw_buf.median())
 
             return self.yaw_buf.median() < self.YAW_THRESHOLD
         except Exception as e:
