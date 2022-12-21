@@ -4,6 +4,13 @@ from abc import ABC, abstractmethod
 import numpy as np
 import cv2
 import mediapipe as mp
+from enum import Enum
+
+
+class DetectResult(Enum):
+    LOST = 1
+    OK = 2
+    NG = 3
 
 
 class Detector(ABC):
@@ -24,6 +31,34 @@ class Detector(ABC):
         pass
 
 
+def calc_yaw_rate(r):
+    l1 = np.linalg.norm([r[0], r[2]])
+    l2 = r[1]
+    return np.rad2deg(np.arctan2(l2, l1))
+
+
+class RingBuffer():
+
+    def __init__(self, buf_size=10):
+        self.idx = 0
+        self.buf = []
+        self.buf_size = buf_size
+
+    def append(self, v):
+        if(len(self.buf) < self.buf_size):
+            self.buf.append(v)
+        else:
+            self.buf[self.idx] = v
+            self.idx = (self.idx+1) % self.buf_size
+        return
+
+    def mean(self):
+        return np.mean(self.buf)
+
+    def median(self):
+        return np.median(self.buf)
+
+
 class PoseBase(Detector):
 
     def __init__(self, is_ir=False):
@@ -38,6 +73,9 @@ class PoseBase(Detector):
 
         self.is_ir = is_ir
 
+        self.YAW_THRESHOLD = 70
+        self.yaw_buf = RingBuffer(10)
+
     def negaeri_check(self, results):
         if not results.pose_landmarks:
             return False
@@ -49,15 +87,18 @@ class PoseBase(Detector):
             nose = results.pose_landmarks.landmark[NOSE]
             right = results.pose_landmarks.landmark[RIGHT_SHOULDER]
             left = results.pose_landmarks.landmark[LEFT_SHOULDER]
+            u = np.array(
+                [right.x-nose.x, -(right.y-nose.y), (right.z-nose.z)])
+            v = np.array([left.x-nose.x, -(left.y-nose.y), (left.z-nose.z)])
 
-            center_x = (nose.x+right.x+left.x)/3
-            center_y = (nose.y+right.y+left.y)/3
+            yaw_rate = calc_yaw_rate(np.cross(u, v))
 
-            u = np.array([right.x-center_x, right.y-center_y])
-            v = np.array([left.x-center_x, left.y-center_y])
+            self.yaw_buf.append(yaw_rate)
+            print(self.yaw_buf.median())
 
-            return np.cross(u, v) >= 0
-        except:
+            return self.yaw_buf.median() < self.YAW_THRESHOLD
+        except Exception as e:
+            print(e)
             return False
 
     def detect(self, img):
@@ -68,7 +109,13 @@ class PoseBase(Detector):
         else:
             results = self.pose_detector.process(img)
 
-        ret = self.negaeri_check(results)
+        if results.pose_landmarks:
+            if self.negaeri_check(results):
+                ret = DetectResult.OK
+            else:
+                ret = DetectResult.NG
+        else:
+            ret = DetectResult.LOST
 
         return ret, results
 
@@ -105,7 +152,10 @@ class FaceBase(Detector):
         else:
             results = self.face_detection.process(img)
 
-        ret = results.detections is not None
+        if results.detections:
+            ret = DetectResult.OK
+        else:
+            ret = DetectResult.LOST
         return ret, results
 
     def draw(self, img, results):
@@ -125,7 +175,7 @@ class NegaeriDetector:
         self.is_draw = is_draw
 
         # for filtering
-        self.window = [False for _ in range(window_size)]
+        self.window = [None for _ in range(window_size)]
         self.idx = 0
 
     def __del__(self):
@@ -134,10 +184,10 @@ class NegaeriDetector:
     def __call__(self, img):
 
         ret, results = self.detector.detect(img)
+
         self.window[self.idx] = ret
         if self.is_draw:
             self.detector.draw(img, results)
         self.idx += 1
         self.idx %= len(self.window)
-
         return statistics.mode(self.window)

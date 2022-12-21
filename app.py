@@ -4,7 +4,7 @@ from datetime import datetime
 import cv2
 import streamlit as st
 
-from negaeri_detector import FaceBase, NegaeriDetector, PoseBase
+from negaeri_detector import DetectResult, FaceBase, NegaeriDetector, PoseBase
 
 # camera setting
 cap = cv2.VideoCapture(0)
@@ -38,12 +38,18 @@ while cap.isOpened:
 
     if ret:
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img = cv2.flip(img, -1)
+        # img = cv2.flip(img, -1)
 
-        if negaeri_detector(img):
+        ret_detect = negaeri_detector(img)
+
+        if ret_detect == DetectResult.OK:
             baby_status.success("Baby is here!", icon='🐥')
+        elif ret_detect == DetectResult.LOST:
+            baby_status.warning('Where is baby?', icon='👀')
+        elif ret_detect == DetectResult.NG:
+            baby_status.error('Help me!', icon='🚨')
         else:
-            baby_status.warning('Where is baby?', icon='🚨')
+            pass
 
         cv2.putText(img,
                     text=f'{datetime.now()}',
